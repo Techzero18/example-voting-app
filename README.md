@@ -36,3 +36,17 @@ helm upgrade my-voting-app ./helm --set voteImageTag=broken-tag-123
 helm rollback my-voting-app
 ```
 *Verification:* The broken pod is instantly terminated, and the previous healthy container takes over, restoring service with zero lasting downtime.
+## Monitoring & Observability (Prometheus & Grafana)
+
+The cluster is monitored using the `kube-prometheus-stack` deployed in the `monitoring` namespace on K3s. Custom Grafana panels track golden signals across the application:
+
+- **HTTP Requests Rate**: Tracks incoming request throughput (`sum(rate(prometheus_http_requests_total[5m]))`).
+- **HTTP 5xx Error Rate**: Monitors server-side error spikes (`sum(rate(prometheus_http_requests_total{code=~"5.."}[5m])) or vector(0)`).
+- **Request Latency**: Measures request duration across endpoints (`sum(rate(prometheus_http_request_duration_seconds_sum[5m]))`).
+
+### Dashboard Artifacts
+- **Exported Dashboard JSON (Root)**: [`grafana-dashboard.json`](./grafana-dashboard.json)
+- **Exported Dashboard JSON (`monitoring/`)**: [`monitoring/grafana-dashboard.json`](./monitoring/grafana-dashboard.json)
+
+### Live Grafana Dashboard Screenshot
+![Grafana Monitoring Dashboard](./Screenshot%20(4).png)
