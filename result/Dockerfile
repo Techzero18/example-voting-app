@@ -1,4 +1,4 @@
-FROM node:18-slim
+FROM node:18.19.1-slim
 
 # add curl for healthcheck
 RUN apt-get update && \
@@ -18,8 +18,13 @@ RUN npm ci && \
 
 COPY . .
 
-ENV PORT=80
-EXPOSE 80
+# Secure the container by giving the built-in 'node' user ownership
+RUN chown -R node:node /usr/local/app /node_modules
+USER node
+
+# Change to a non-privileged port
+ENV PORT=8081
+EXPOSE 8081
 
 ENTRYPOINT ["/usr/bin/tini", "--"]
 CMD ["node", "server.js"]

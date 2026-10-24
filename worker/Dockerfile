@@ -21,8 +21,13 @@ RUN dotnet restore -a $TARGETARCH
 COPY . .
 RUN dotnet publish -c release -o /app -a $TARGETARCH --self-contained false --no-restore
 
-# app image
-FROM mcr.microsoft.com/dotnet/runtime:7.0
+# app image (Pinned to specific patch version 7.0.20)
+FROM mcr.microsoft.com/dotnet/runtime:7.0.20
 WORKDIR /app
 COPY --from=build /app .
+
+# Secure the container by creating and using a non-root user
+RUN useradd -m workerapp && chown -R workerapp /app
+USER workerapp
+
 ENTRYPOINT ["dotnet", "Worker.dll"]

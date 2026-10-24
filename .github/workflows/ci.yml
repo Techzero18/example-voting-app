@@ -1,0 +1,36 @@
+name: CI Pipeline
+
+on:
+  push:
+    branches:
+      - main
+
+jobs:
+  build-scan-push:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      # --- VOTE APP ---
+      - name: Build Vote Image
+        run: docker build -t ${{ secrets.DOCKERHUB_USERNAME }}/vote-secure:${{ github.sha }} ./vote
+
+      - name: Trivy Scan - Vote
+        uses: aquasecurity/trivy-action@master
+        with:
+          image-ref: '${{ secrets.DOCKERHUB_USERNAME }}/vote-secure:${{ github.sha }}'
+          format: 'table'
+          exit-code: '0' 
+          severity: 'CRITICAL,HIGH'
+
+      - name: Log in to Docker Hub
+        uses: docker/login-action@v3
+        with:
+          username: ${{ secrets.DOCKERHUB_USERNAME }}
+          password: ${{ secrets.DOCKERHUB_TOKEN }}
+
+      - name: Push Vote Image
+        run: docker push ${{ secrets.DOCKERHUB_USERNAME }}/vote-secure:${{ github.sha }}
+        
+      # (Copy the Build, Scan, and Push steps above and change "vote" to "result" and "worker" for the remaining apps)

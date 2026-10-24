@@ -1,65 +1,38 @@
-# Example Voting App
+# Capstone 1: Kubernetes Microservices Deployment
 
-A simple distributed application running across multiple Docker containers.
+## Project Overview
+This project demonstrates a complete DevOps lifecycle by deploying a 5-tier microservices Voting Application to an AWS Elastic Kubernetes Service (EKS) cluster. The infrastructure was provisioned using Terraform, and the application is packaged and deployed via Helm.
 
-## Getting started
+![Architecture Diagram](./architecture-diagram.png) 
 
-Download [Docker Desktop](https://www.docker.com/products/docker-desktop) for Mac or Windows. [Docker Compose](https://docs.docker.com/compose) will be automatically installed. On Linux, make sure you have the latest version of [Compose](https://docs.docker.com/compose/install/).
+## CI/CD Pipeline & Security
+Continuous Integration and Deployment are handled via GitHub Actions. On every push to the `main` branch, the pipeline:
+1. Builds the Docker images.
+2. Scans the images for CRITICAL and HIGH vulnerabilities using **Trivy**.
+3. Pushes the secure images to Docker Hub (account: `techzero19`), tagged with the unique GitHub Commit SHA for complete traceability.
 
-This solution uses Python, Node.js, .NET, with Redis for messaging and Postgres for storage.
+## Helm Configuration
+The application is packaged into a single Helm chart located in the `./helm` directory, satisfying the "one chart, one values file" requirement. 
+- **Chart:** `voting-app`
+- **Configuration:** The `values.yaml` file controls the specific image tag for the frontend vote application, allowing for rapid versioning and rollbacks.
 
-Run in this directory to build and run the app:
-
-```shell
-docker compose up
+## Deployment Instructions
+To deploy the application to your cluster, run the following command from the repository root:
+```bash
+helm install my-voting-app ./helm
 ```
 
-The `vote` app will be running at [http://localhost:8080](http://localhost:8080), and the `results` will be at [http://localhost:8081](http://localhost:8081).
+## Fault Tolerance & Rollback Demonstration
+To test Kubernetes fault tolerance and Helm's rollback capabilities, follow these steps to simulate a bad release and instantly recover.
 
-Alternately, if you want to run it on a [Docker Swarm](https://docs.docker.com/engine/swarm/), first make sure you have a swarm. If you don't, run:
-
-```shell
-docker swarm init
+**1. Deploy a broken version (simulating a failed tag):**
+```bash
+helm upgrade my-voting-app ./helm --set voteImageTag=broken-tag-123
 ```
+*Verification:* Running `kubectl get pods` will show the `vote` pod failing with an `ImagePullBackOff` error.
 
-Once you have your swarm, in this directory run:
-
-```shell
-docker stack deploy --compose-file docker-stack.yml vote
+**2. Roll back to the known-good state:**
+```bash
+helm rollback my-voting-app
 ```
-
-## Run the app in Kubernetes
-
-The folder k8s-specifications contains the YAML specifications of the Voting App's services.
-
-Run the following command to create the deployments and services. Note it will create these resources in your current namespace (`default` if you haven't changed it.)
-
-```shell
-kubectl create -f k8s-specifications/
-```
-
-The `vote` web app is then available on port 31000 on each host of the cluster, the `result` web app is available on port 31001.
-
-To remove them, run:
-
-```shell
-kubectl delete -f k8s-specifications/
-```
-
-## Architecture
-
-![Architecture diagram](architecture.excalidraw.png)
-
-* A front-end web app in [Python](/vote) which lets you vote between two options
-* A [Redis](https://hub.docker.com/_/redis/) which collects new votes
-* A [.NET](/worker/) worker which consumes votes and stores them in…
-* A [Postgres](https://hub.docker.com/_/postgres/) database backed by a Docker volume
-* A [Node.js](/result) web app which shows the results of the voting in real time
-
-## Notes
-
-The voting application only accepts one vote per client browser. It does not register additional votes if a vote has already been submitted from a client.
-
-This isn't an example of a properly architected perfectly designed distributed app... it's just a simple
-example of the various types of pieces and languages you might see (queues, persistent data, etc), and how to
-deal with them in Docker at a basic level.
+*Verification:* The broken pod is instantly terminated, and the previous healthy container takes over, restoring service with zero lasting downtime.
